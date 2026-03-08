@@ -1,4 +1,4 @@
-# Parameter Sweep - CUDA Accelerated Dynamical System Analysis
+# 基于C++ CUDA和Matlab的非线性动力学参数扫描工具箱
 
 CUDA加速的动力学系统参数扫描分析工具，用于绘制混沌系统的双参数分岔图和Lyapunov指数等图像。
 
