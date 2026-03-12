@@ -1,35 +1,49 @@
-# 分岔图模块 (Bifdiag)
+# Bifdiag - CUDA加速的分岔图计算模块
 
-基于CUDA GPU加速的Qi系统分岔图计算模块，用于绘制非线性动力学系统的分岔图。
+基于CUDA GPU加速的Qi系统分岔图计算模块，用于绘制非线性动力学系统的双参数分岔图。
 
-## 功能概述
+## 功能特点
 
-本模块实现了：
-- **CUDA加速的分岔图计算**：利用GPU并行计算大幅提升计算效率
-- **Poincaré截面分析**：通过截面方法捕捉系统的周期轨道
-- **分段计算**：支持大范围参数扫描的分段计算和拼接
-- **自动结果管理**：自动生成带时间戳的结果文件夹和绘图脚本
+- **GPU并行计算**：利用CUDA实现大规模参数空间的高效扫描
+- **双参数分岔图**：同时扫描两个参数，生成二维分岔图
+- **Poincaré截面**：通过Poincaré截面方法分析周期轨道
+- **自动分段计算**：支持大范围参数扫描的分段处理和结果拼接
+- **完整工作流**：从计算、保存到绘图的一站式解决方案
+
+## 文件结构
+
+```
+bifdiag/
+├── build_bifdiag_mex.m    # 编译CUDA MEX函数的构建脚本
+├── main.m                 # 主程序：分岔图计算和结果保存
+├── bifdiag_mex.mexw64     # 编译后的CUDA MEX函数（Windows）
+└── README.md              # 本文档
+
+../cuda/bifdiag/
+└── bifdiag_mex.cu         # CUDA内核源代码
+```
 
 ## 系统要求
 
-### 硬件要求
-- NVIDIA GPU (计算能力sm_86或更高)
-- 至少6GB显存
-
-### 软件要求
-- MATLAB R2022a或更高版本
-- CUDA Toolkit 12.8
-- Visual Studio 2019 (MSVC v142)
-- Windows 10/11
+- **操作系统**: Windows 10/11
+- **MATLAB**: R2022a 或更高版本
+- **CUDA Toolkit**: 12.8
+- **GPU**: NVIDIA GPU (计算能力 sm_86 或更高，建议 RTX 40/30 系列)
+- **显存**: 至少 6GB，推荐 8GB+
+- **编译器**: Visual Studio 2019 (MSVC v142)
 
 ## 快速开始
 
 ### 1. 编译CUDA MEX函数
 
+确保已安装所有依赖后，在MATLAB中运行：
+
 ```matlab
-cd src/matlab/bifdiag
+cd 'F:\money\parameter_sweep\src\matlab\bifdiag'
 build_bifdiag_mex
 ```
+
+如果编译成功，将生成 `bifdiag_mex.mexw64` 文件。
 
 ### 2. 运行分岔图计算
 
@@ -37,205 +51,226 @@ build_bifdiag_mex
 main
 ```
 
+默认计算参数：
+- 参数 a: 34 ~ 35，分3段计算，每段101点
+- 参数 c: -50 ~ 50，101点
+- 固定参数: b=1, c_sys=104.5
+- 积分: dt=0.001, N=1e7, kneadings=1000~1050
+
 ### 3. 查看结果
 
-结果将自动保存在以时间戳命名的文件夹中，包含：
-- `P.mat` - 原始数据
-- `plot_data.m` - 绘图脚本
+计算完成后，会在当前目录生成类似 `bif_b1_c104.5_a34.00-35.00_20260312_154312` 的时间戳文件夹，包含：
+- `P.mat` - 分岔图数据 (P_all, a_all, 参数)
+- `plot_data.m` - 独立绘图脚本
 - `bifurcation_diagram.png` - 分岔图图像
-- `bifurcation_diagram.fig` - MATLAB图形文件
 
-## 参数说明
+## 参数配置
 
-### 主要参数
-- `parameter1Start`, `parameter1End`, `parameter1Count` - 第一个扫描参数（通常是a）的范围
-- `parameter2Start`, `parameter2End`, `parameter2Count` - 第二个扫描参数（通常是c）的范围
-- `parameter2` - 固定参数b
-- `parameter3` - 固定参数c（系统参数）
-- `whichSweep` - 扫描类型（0:扫描a，1:扫描b，2:扫描c）
+在 `main.m` 中修改以下参数：
 
-### 积分参数
-- `dt` - 时间步长（默认0.001）
-- `N` - 总迭代次数（默认1e7）
-- `stride` - 采样间隔（默认1）
-- `kneadingsStart`, `kneadingsEnd` - Poincaré截面采样区间
+### 扫描参数
+```matlab
+% 参数a扫描（分岔参数）
+a_full_start = 34;        % 起始值
+a_full_end = 35;          % 结束值
+a_step = 0.1;             % 分段跨度（小于总范围时分段计算）
+points_per_block = 101;   % 每段点数
+
+% 参数c扫描（Poincaré截面）
+parameter2Start = -50;    % 起始值
+parameter2End = 50;       % 结束值
+parameter2Count = 101;    % 采样点数
+```
+
+### 系统参数
+```matlab
+parameter2 = 1;           % 固定参数 b
+parameter3 = 104.5;       % 固定参数 c (系统参数)
+whichSweep = 0;           % 扫描类型: 0=a, 1=b, 2=c
+```
+
+### 积分设置
+```matlab
+dt = 0.001;              % 时间步长
+N = 1e7;                 % 总迭代次数
+stride = 1;              % 采样间隔
+kneadingsStart = 1000;   % Poincaré采样起始迭代
+kneadingsEnd = 1050;     % Poincaré采样结束迭代
+```
 
 ### 初始条件
-- `x0_initial`, `y0_initial`, `z0_initial` - 系统初始状态
+```matlab
+x0_initial = 0.1;
+y0_initial = 0.1;
+z0_initial = 0.1;
+```
 
-### 分段计算参数
-- `a_full_start`, `a_full_end` - 总参数范围
-- `a_step` - 每段跨度（小于总范围时启用分段计算）
-- `points_per_block` - 每段点数
+## 算法说明
 
-## 算法原理
-
-### 1. Qi系统动力学方程
+### Qi系统方程
 ```
 dx/dt = a(y - x) + yz
 dy/dt = cx - y - xz
 dz/dt = xy - bz
 ```
 
-### 2. Poincaré截面方法
-通过定义截面，记录轨迹穿过截面的点，从而将连续动力系统简化为离散映射。
+### 计算流程
 
-### 3. 龙格-库塔积分
-使用4阶龙格-库塔方法进行数值积分：
-```
-k1 = f(y_n)
-k2 = f(y_n + dt/2 * k1)
-k3 = f(y_n + dt/2 * k2)
-k4 = f(y_n + dt * k3)
-y_{n+1} = y_n + dt/6 * (k1 + 2k2 + 2k3 + k4)
-```
+1. **初始化**：根据当前参数计算平衡点距离，设置初始条件
+2. **积分**：使用4阶Runge-Kutta方法进行数值积分
+3. **Poincaré截面**：当轨迹穿过固定点定义的截面时记录值
+4. **统计**：对每个参数点计算Poincaré截面的平均值
+5. **可视化**：绘制参数-截面值散点图
 
-### 4. CUDA并行化
-- 每个线程处理一个参数点
-- 并行计算不同参数条件下的轨迹
-- 使用共享内存优化数据访问
+### 分段计算
 
-## 输出格式
+当 `a_step < (a_full_end - a_full_start)` 时启用分段计算，避免单次计算内存不足或超时。各段结果自动横向拼接为完整数据。
+
+## 输出说明
 
 ### 数据文件 (P.mat)
-- `P_all` - 分岔图数据矩阵（size: parameter2Count × total_param1_points）
-- `a_all` - 对应的参数a值（或其他扫描参数）
-- 所有输入参数
+- `P_all` - 分岔图数据矩阵 (parameter2Count × total_points)
+- `a_all` - 对应的参数a值向量
+- 所有输入参数（parameter2Start, parameter2End, parameter2Count 等）
 
-### 图像输出
-- 散点图形式的分岔图
-- 横轴：扫描参数（通常是a）
-- 纵轴：第二个参数（通常是c）
-- 颜色：Poincaré截面值
-- 使用slanCM配色方案
-
-## 使用示例
-
-### 基本使用
+### 绘图脚本 (plot_data.m)
+独立脚本，可单独运行重新绘图：
 ```matlab
-% 修改参数范围
-parameter1Start = 30;
-parameter1End = 40;
-parameter1Count = 201;
-
-% 运行计算
-main;
+load('P.mat');
+% 自动加载数据并绘制分岔图
 ```
 
-### 扫描不同参数
-```matlab
-% 扫描参数b
-whichSweep = 1;
-parameter2 = 2.5;  % 固定参数a
-parameter3 = 104.5; % 固定参数c
-parameter1Start = 0.5;
-parameter1End = 3;
-parameter1Count = 101;
-main;
-```
-
-### 调整精度
-```matlab
-% 高精度计算
-dt = 0.0005;
-N = 2e7;
-kneadingsStart = 2000;
-kneadingsEnd = kneadingsStart + 100;
-main;
-```
+### 图像文件
+- `bifurcation_diagram.png` - PNG格式分岔图
+- `bifurcation_diagram.fig` - MATLAB图形文件（可编辑）
 
 ## 性能优化建议
 
-### 1. 参数选择
-- 适当减少`parameter1Count`和`parameter2Count`以提高速度
-- 增大`dt`可加快计算但可能降低精度
-- 减少`N`可缩短计算时间但可能无法达到稳态
+### 1. 调整参数点数
+```matlab
+% 降低分辨率以提高速度
+parameter2Count = 51;    % 从101降低到51
+points_per_block = 51;   % 减少每段点数
+```
 
-### 2. 内存管理
-- 大范围参数扫描建议使用分段计算（设置`a_step`）
-- 监控GPU显存使用情况
-- 适当调整`kneadingsEnd - kneadingsStart`控制数据量
+### 2. 减少积分迭代
+```matlab
+N = 5e6;                % 减少迭代次数（可能影响精度）
+kneadingsEnd = kneadingsStart + 30;  % 减少Poincaré采样点数
+```
 
-### 3. 精度控制
-- 减小`dt`提高积分精度
-- 增加`N`确保达到稳态
-- 调整`kneadingsStart`跳过瞬态过程
+### 3. 增大时间步长
+```matlab
+dt = 0.002;             % 增大时间步长（降低精度）
+```
 
-## 常见问题
+### 4. 启用分段计算
+```matlab
+a_step = 0.05;          % 减小分段跨度，每段计算量更小
+```
+
+## 故障排除
 
 ### 编译错误
-1. **CUDA Toolkit未找到**：检查CUDA安装路径
-2. **计算能力不匹配**：更新`build_bifdiag_mex.m`中的`-arch=sm_xx`
-3. **编译器配置错误**：运行`mex -setup C++`
+
+**错误**: `CUDA源文件不存在`
+- 检查 `bifdiag_mex.cu` 文件路径是否正确
+- 确认 `cuda/bifdiag/` 目录存在
+
+**错误**: `Cannot find compiler 'cl.exe'`
+- 运行 `mex -setup C++` 配置MATLAB编译器
+- 确保Visual Studio 2019已安装并添加到PATH
+
+**错误**: `Unsupported GPU architecture`
+- 检查GPU计算能力，修改 `build_bifdiag_mex.m` 中的 `-arch=sm_XX`
+- RTX 40系列: sm_89, RTX 30系列: sm_86
 
 ### 运行时错误
-1. **GPU内存不足**：减少参数点数或使用分段计算
-2. **数值不稳定**：减小时间步长`dt`
-3. **无结果输出**：检查`kneadingsStart`是否设置过大
 
-### 结果异常
-1. **分岔图空白**：调整参数范围
-2. **图像噪声过大**：增加`N`或调整`kneadings`区间
-3. **周期轨道不清晰**：优化Poincaré截面定义
+**错误**: `CUDA error: out of memory`
+- 减少 `parameter2Count` 或 `points_per_block`
+- 使用分段计算（减小 `a_step`）
 
-## 算法细节
+**错误**: 分岔图空白或异常
+- 检查参数范围是否合理（某些参数组合可能无周期轨道）
+- 增加 `N` 和 `kneadingsEnd` 以获得更稳定的统计
+- 调整初始条件 `x0_initial, y0_initial, z0_initial`
 
-### Poincaré截面计算
-代码使用了基于固定点距离的Poincaré截面：
-```cuda
-DerivativeCurrent = fixedPointDistance[0] * y_current[1] - fixedPointDistance[1] * y_current[0];
+**警告**: `expression has no effect`
+- 来自CUDA代码的空语句，可忽略
+
+## 示例：快速测试
+
+创建测试脚本 `quick_test.m`：
+
+```matlab
+% 快速测试 - 低分辨率
+a_full_start = 34.5;
+a_full_end = 34.6;
+a_step = 0.1;
+points_per_block = 21;
+
+parameter2Start = -20;
+parameter2End = 20;
+parameter2Count = 21;
+
+N = 1e6;  % 减少迭代加速测试
+
+main;
 ```
-当导数符号变化时，记录截面交点，并计算对应的值。
 
-### 固定点距离计算
-```cuda
-computeFixedPointDistance(fixedPointDistance, params);
-```
-计算平衡点与当前状态的距离，用于定义Poincaré截面。
+预期耗时：1-5分钟（取决于GPU性能）
 
-### 线程映射
-```cuda
-int i = tx / parameter2Step;
-int j = tx % parameter2Step;
-int flat_index = i * parameter2Step + j;
-```
-将一维线程ID映射到二维参数网格。
+## 高级用法
 
-## 扩展功能
+### 修改系统方程
 
-### 支持其他动力系统
-修改`stepper`函数中的微分方程：
+编辑 `cuda/bifdiag/bifdiag_mex.cu` 中的 `stepper` 函数：
+
 ```cuda
 __device__ void stepper(const double* y, double* dydt, const double* params)
 {
-    // 替换为其他系统的方程
-    // 例如Lorenz系统:
-    // dydt[0] = params[0] * (y[1] - y[0]);
+    double a = params[0], b = params[1], c = params[2];
+    
+    // 修改为其他系统，例如 Lorenz:
+    // dydt[0] = a * (y[1] - y[0]);
     // dydt[1] = y[0] * (params[1] - y[2]) - y[1];
     // dydt[2] = y[0] * y[1] - params[2] * y[2];
+    
+    // Qi系统（默认）:
+    dydt[0] = a*y[1] - a*y[0] + y[1]*y[2];
+    dydt[1] = c*y[0] - y[1] - y[0]*y[2];
+    dydt[2] = y[0]*y[1] - b*y[2];
 }
 ```
 
-### 添加其他分析方法
-- Lyapunov指数计算
-- 功率谱分析
-- 返回映射分析
-- 混沌度量化
+重新编译后即可计算其他系统的分岔图。
 
-## 参考文献
+### 批量计算多个参数组合
 
-1. **Qi系统分岔分析**: [Complex bifurcations and new types of structure uncovered in the Qi system](https://www.sciencedirect.com/science/article/pii/S0378475425005440)
-2. **Poincaré截面方法**: Guckenheimer & Holmes, *Nonlinear Oscillations, Dynamical Systems, and Bifurcations of Vector Fields*
-3. **CUDA并行计算**: NVIDIA CUDA Programming Guide
+```matlab
+% 保存原始参数
+orig_b = parameter2;
+orig_c = parameter3;
+
+% 循环计算不同参数
+for b_val = [0.5, 1.0, 1.5, 2.0]
+    parameter2 = b_val;
+    main;
+end
+
+% 恢复参数
+parameter2 = orig_b;
+parameter3 = orig_c;
+```
+
+## 引用
+
+如果本项目对您的研究有帮助，请引用相关论文：
+
+- Qi系统分岔分析: [Complex bifurcations and new types of structure uncovered in the Qi system](https://www.sciencedirect.com/science/article/pii/S0378475425005440)
 
 ## 许可证
 
-MIT License - 详见项目根目录LICICENSE文件
+MIT License
 
-## 更新日志
-
-### v1.0.0 (2026-03-12)
-- 初始版本发布
-- 基于原始bif_qi.cu代码重构
-- 参照bisweep项目结构设计
-- 完整的文档和示例
