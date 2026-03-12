@@ -62,7 +62,7 @@ ylabel('$c$-parameter', 'Interpreter', 'latex', 'FontSize', 25);
 timestamp = datestr(now,'yyyymmdd_HHMMSS');
 
 % 生成文件夹名称并创建
-folder_name = sprintf('qi_b%g_a%.2f-%.2f_c%.2f-%.2f_%s', ...
+folder_name = sprintf('sweep_b%g_a%.2f-%.2f_c%.2f-%.2f_%s', ...
     parameter3, ...
     parameter1Start, parameter1End, ...
     parameter2Start, parameter2End, ...
@@ -84,7 +84,7 @@ fprintf(fid, '%% 自动生成的绘图脚本\n');
 fprintf(fid, 'clc;\n');
 fprintf(fid, 'clear;\n');
 fprintf(fid, '%% 添加slanCM路径\n');
-fprintf(fid, 'addpath(''../../expake/slanCM'');\n\n');
+fprintf(fid, 'addpath(''../../../../expake/slanCM'');\n\n');
 fprintf(fid, '%% 加载数据\n');
 fprintf(fid, 'load(''P.mat'');\n\n');
 fprintf(fid, '%% 设置参数\n');
